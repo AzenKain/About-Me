@@ -5,6 +5,7 @@ import { Cloud, Download, Upload, Check, Loader2, RefreshCw } from "lucide-react
 import { triggerRevalidation, importBackupAction } from "@/app/actions/admin";
 import { PortfolioData } from "@/lib/db/queries";
 import { AdminCronSyncManager } from "./AdminCronSyncManager";
+import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import { toast } from "sonner";
 
 interface AdminSecurityTabProps {
@@ -15,6 +16,8 @@ export function AdminSecurityTab({ portfolioData }: AdminSecurityTabProps) {
   const [revalidating, setRevalidating] = useState(false);
   const [revalidated, setRevalidated] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [restoreModalOpen, setRestoreModalOpen] = useState(false);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const handleRevalidate = async () => {
@@ -47,20 +50,21 @@ export function AdminSecurityTab({ portfolioData }: AdminSecurityTabProps) {
     }
   };
 
-  const handleImportFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImportFileSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     e.target.value = "";
+    setPendingFile(file);
+    setRestoreModalOpen(true);
+  };
 
-    const confirmRestore = window.confirm(
-      `Restore backup from "${file.name}"?\n\nWARNING: This will replace current projects, categories, achievements, experiences, education, and profile data with data from this verified backup.`
-    );
-    if (!confirmRestore) return;
+  const confirmRestoreBackup = async () => {
+    if (!pendingFile) return;
 
     setImporting(true);
     try {
-      const fileText = await file.text();
+      const fileText = await pendingFile.text();
       const parsed = JSON.parse(fileText);
 
       const result = await importBackupAction(parsed);
@@ -76,6 +80,8 @@ export function AdminSecurityTab({ portfolioData }: AdminSecurityTabProps) {
       toast.success(
         `Backup imported! Restored ${result.counts?.projects ?? 0} projects, ${result.counts?.experiences ?? 0} experiences, ${result.counts?.categories ?? 0} categories.`
       );
+      setRestoreModalOpen(false);
+      setPendingFile(null);
 
       setTimeout(() => {
         window.location.reload();
@@ -221,6 +227,24 @@ export function AdminSecurityTab({ portfolioData }: AdminSecurityTabProps) {
           </button>
         </div>
       </div>
+
+      {/* Confirmation Modal for Restoring JSON Backup */}
+      <ConfirmModal
+        isOpen={restoreModalOpen}
+        onClose={() => {
+          if (!importing) {
+            setRestoreModalOpen(false);
+            setPendingFile(null);
+          }
+        }}
+        onConfirm={confirmRestoreBackup}
+        title="Restore JSON Database Backup"
+        description={`Restore database backup from "${pendingFile?.name}"? WARNING: This will overwrite existing projects, categories, achievements, experiences, education, and profile data with data from this verified backup.`}
+        confirmText="Restore Database"
+        cancelText="Cancel"
+        variant="warning"
+        loading={importing}
+      />
     </div>
   );
 }
