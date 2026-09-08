@@ -1,0 +1,22 @@
+name: Gitea Auto Deploy
+run-name: ${{ gitea.actor }} pushed code
+
+on: [push]
+
+jobs:
+  Deploy-Container:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out latest code
+        uses: actions/checkout@v4
+        
+
+      - name: Create .env file
+        run: |
+          printf "%s" "${{ secrets.ENV_FILE }}" > .env
+
+      - name: Deploy to Container
+        run: |
+          docker compose up -d --build --remove-orphans
+      

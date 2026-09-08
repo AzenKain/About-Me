@@ -1,0 +1,16 @@
+services:
+  aboutme:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: aboutme_app
+    restart: unless-stopped
+    ports:
+      - "3012:3000"
+    env_file:
+      - .env
+    volumes:
+      - ./data:/app/data
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=file:data/portfolio.db
